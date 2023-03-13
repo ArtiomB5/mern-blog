@@ -2,14 +2,16 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { validationResult } from "express-validator";
+import bcrypt from "bcrypt";
 
-import { registerValidation } from "./validations/auth";
+import { registerValidation } from "./validations/auth.js";
+import UserModel from "./models/User.js";
 
 mongoose
   .connect(
-    "mongodb+srv://dbUser:<fOE5kCIF7P5wQT2m>@cluster0.44kqpmj.mongodb.net/?retryWrites=true&w=majority"
+    "mongodb+srv://dbUser:fOE5kCIF7P5wQT2m@cluster0.44kqpmj.mongodb.net/blog?retryWrites=true&w=majority"
   )
-  .then((resp) => console.log(`DB-OK`, resp))
+  .then(() => console.log(`DB-OK`))
   .catch((error) => console.log(`DB-ERROR`, error));
 
 const app = express();
@@ -20,31 +22,91 @@ app.get("/", (req, res) => {
   res.send("Hello World 2!");
 });
 
-app.post("/auth/login", (req, res) => {
-  const token = jwt.sign(
-    {
-      email: req.body.email,
-    },
-    "tokenSecretKey"
-  ); //generate new token
 
-  res.json({
-    success: true,
-    token,
-  });
-  //   console.log("REQ_body", req.body);
+app.post("/auth/login", async (req, res) => {
+  try {
+    const user = await UserModel.findOne({ email: req.body.email});
+
+    if (!user) {
+      console.log("Пользователь не найден")
+      return res.status(400).json({
+        message: "Не верный логин или пароль"
+      })
+    }
+
+    const isValidPass = await bcrypt.compare(req.body.password, user._doc.passwordHash)
+
+    if (!isValidPass) {
+      console.log("Не верный пароль")
+      return res.status(400).json({
+        message: "Не верный логин или пароль"
+      })
+    }
+
+    // create JWT token
+    const token = jwt.sign({
+      _id: user._id
+    }, 
+    'sercet123', {
+      expiresIn: '30d'
+    })
+
+    const {passwordHash, ...userData} = user._doc;
+
+    res.json({
+      ...userData,
+      token
+    });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'Не удалось авторизоваться!',
+    });
+  }
 });
 
 // We use registerValidation for validate /auth/register request data
-app.post("/auth/register", registerValidation, (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json(errors.array());
-  }
+app.post("/auth/register", registerValidation, async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json(errors.array());
+    }
 
-  res.json({
-    success: true,
-  });
+    const password = req.body.password;
+    const salt = await bcrypt.genSalt(10); // encryption alghoritm
+    const hash = await bcrypt.hash(password, salt); //encrypted password
+
+    const doc = new UserModel({
+      fullName: req.body.fullName,
+      email: req.body.email,
+      avatarUrl: req.body.avatarUrl,
+      passwordHash: hash,
+    });
+
+    const user = await doc.save();
+
+    const {passwordHash, ...userData} = user._doc;
+
+    // create JWT token
+    const token = jwt.sign({
+      _id: user._id
+    }, 
+    'sercet123', {
+      expiresIn: '30d'
+    })
+
+    // returns created user data and token
+    res.json({
+      ...userData,
+      token
+    });
+  } catch (error) {
+    console.log(error)
+    res.status(500).json({
+      message: 'Не удалось зарегистрироваться!',
+    });
+  }
 });
 
 app.listen(4444, (err) => {
