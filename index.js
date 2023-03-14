@@ -6,6 +6,7 @@ import bcrypt from "bcrypt";
 
 import { registerValidation } from "./validations/auth.js";
 import UserModel from "./models/User.js";
+import checkAuth from "./utils/checkAuth.js";
 
 mongoose
   .connect(
@@ -22,45 +23,73 @@ app.get("/", (req, res) => {
   res.send("Hello World 2!");
 });
 
+app.get("/auth/me", checkAuth, async (req, res) => {
+  try {
+    const user = await UserModel.findById(req.userId);
+    if (!user) {
+      return res.status(404).json({
+        message: "Пользователь не найден 1",
+      });
+    }
+    const { passwordHash, ...userData } = user._doc;
+
+    return res.json({
+      ...userData,
+    });
+  } catch (err) {
+    console.log("----- ***** ----- ***** -----")
+    console.log("/auth/me Error", err)
+    console.log("----- ***** ----- ***** -----")
+    return res.status(404).json({
+      message: "Пользователь не найден 2",
+    });
+  }
+});
 
 app.post("/auth/login", async (req, res) => {
   try {
-    const user = await UserModel.findOne({ email: req.body.email});
+    const user = await UserModel.findOne({ email: req.body.email });
 
     if (!user) {
-      console.log("Пользователь не найден")
+      console.log("Пользователь не найден");
       return res.status(400).json({
-        message: "Не верный логин или пароль"
-      })
+        message: "Не верный логин или пароль",
+      });
     }
 
-    const isValidPass = await bcrypt.compare(req.body.password, user._doc.passwordHash)
+    const isValidPass = await bcrypt.compare(
+      req.body.password,
+      user._doc.passwordHash
+    );
 
     if (!isValidPass) {
-      console.log("Не верный пароль")
+      console.log("Не верный пароль");
       return res.status(400).json({
-        message: "Не верный логин или пароль"
-      })
+        message: "Не верный логин или пароль",
+      });
     }
 
     // create JWT token
-    const token = jwt.sign({
-      _id: user._id
-    }, 
-    'sercet123', {
-      expiresIn: '30d'
-    })
+    const token = jwt.sign(
+      {
+        _id: user._id,
+      },
+      "secret123",
+      {
+        expiresIn: "30d",
+      }
+    );
 
-    const {passwordHash, ...userData} = user._doc;
+    const { passwordHash, ...userData } = user._doc;
 
     res.json({
       ...userData,
-      token
+      token,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({
-      message: 'Не удалось авторизоваться!',
+      message: "Не удалось авторизоваться!",
     });
   }
 });
@@ -86,25 +115,28 @@ app.post("/auth/register", registerValidation, async (req, res) => {
 
     const user = await doc.save();
 
-    const {passwordHash, ...userData} = user._doc;
+    const { passwordHash, ...userData } = user._doc;
 
     // create JWT token
-    const token = jwt.sign({
-      _id: user._id
-    }, 
-    'sercet123', {
-      expiresIn: '30d'
-    })
+    const token = jwt.sign(
+      {
+        _id: user._id,
+      },
+      "secret123",
+      {
+        expiresIn: "30d",
+      }
+    );
 
     // returns created user data and token
     res.json({
       ...userData,
-      token
+      token,
     });
   } catch (error) {
-    console.log(error)
+    console.log(error);
     res.status(500).json({
-      message: 'Не удалось зарегистрироваться!',
+      message: "Не удалось зарегистрироваться!",
     });
   }
 });
