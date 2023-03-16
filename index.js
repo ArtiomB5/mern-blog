@@ -1,12 +1,10 @@
 import express from "express";
-import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
-import { validationResult } from "express-validator";
-import bcrypt from "bcrypt";
 
-import { registerValidation } from "./validations/auth.js";
-import UserModel from "./models/User.js";
+import * as Validations from "./validations.js";
 import checkAuth from "./utils/checkAuth.js";
+import * as UserController from "./controllers/UserController.js";
+import * as PostController from "./controllers/PostController.js";
 
 mongoose
   .connect(
@@ -19,131 +17,27 @@ const app = express();
 
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("Hello World 2!");
+app.get("/", (request, response) => {
+  response.send("Hello World 2!");
 });
 
-app.get("/auth/me", checkAuth, async (req, res) => {
-  try {
-    const user = await UserModel.findById(req.userId);
-    if (!user) {
-      return res.status(404).json({
-        message: "Пользователь не найден 1",
-      });
-    }
-    const { passwordHash, ...userData } = user._doc;
+app.get("/auth/me", checkAuth, UserController.getMe);
+app.post("/auth/login", Validations.loginValidation, UserController.login);
+app.post(
+  "/auth/register",
+  Validations.registerValidation,
+  UserController.register
+); // We use registerValidation for validate /auth/register request data
 
-    return res.json({
-      ...userData,
-    });
-  } catch (err) {
-    console.log("----- ***** ----- ***** -----")
-    console.log("/auth/me Error", err)
-    console.log("----- ***** ----- ***** -----")
-    return res.status(404).json({
-      message: "Пользователь не найден 2",
-    });
-  }
-});
+app.post("/posts", PostController.create); // Create one post - Create/CRUD
+// app.get("/posts", PostController.getAll); // Get all posts - Read/CRUD
+// app.get("/posts/:id", PostController.getOne); // Get one post by id - Read/CRUD
+// app.patch("/posts/:id", PostController.update); // Update one post by id - Update/CRUD
+// app.delete("/posts/:id", PostController.remove); // Delete one post by id - Delete/CRUD
 
-app.post("/auth/login", async (req, res) => {
-  try {
-    const user = await UserModel.findOne({ email: req.body.email });
-
-    if (!user) {
-      console.log("Пользователь не найден");
-      return res.status(400).json({
-        message: "Не верный логин или пароль",
-      });
-    }
-
-    const isValidPass = await bcrypt.compare(
-      req.body.password,
-      user._doc.passwordHash
-    );
-
-    if (!isValidPass) {
-      console.log("Не верный пароль");
-      return res.status(400).json({
-        message: "Не верный логин или пароль",
-      });
-    }
-
-    // create JWT token
-    const token = jwt.sign(
-      {
-        _id: user._id,
-      },
-      "secret123",
-      {
-        expiresIn: "30d",
-      }
-    );
-
-    const { passwordHash, ...userData } = user._doc;
-
-    res.json({
-      ...userData,
-      token,
-    });
-  } catch (error) {
+app.listen(4444, (error) => {
+  if (error) {
     console.log(error);
-    res.status(500).json({
-      message: "Не удалось авторизоваться!",
-    });
-  }
-});
-
-// We use registerValidation for validate /auth/register request data
-app.post("/auth/register", registerValidation, async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json(errors.array());
-    }
-
-    const password = req.body.password;
-    const salt = await bcrypt.genSalt(10); // encryption alghoritm
-    const hash = await bcrypt.hash(password, salt); //encrypted password
-
-    const doc = new UserModel({
-      fullName: req.body.fullName,
-      email: req.body.email,
-      avatarUrl: req.body.avatarUrl,
-      passwordHash: hash,
-    });
-
-    const user = await doc.save();
-
-    const { passwordHash, ...userData } = user._doc;
-
-    // create JWT token
-    const token = jwt.sign(
-      {
-        _id: user._id,
-      },
-      "secret123",
-      {
-        expiresIn: "30d",
-      }
-    );
-
-    // returns created user data and token
-    res.json({
-      ...userData,
-      token,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "Не удалось зарегистрироваться!",
-    });
-  }
-});
-
-app.listen(4444, (err) => {
-  if (err) {
-    console.log(err);
   }
 
   console.log("Server OK");
