@@ -29,9 +29,14 @@ app.post(
   UserController.register
 ); // We use registerValidation for validate /auth/register request data
 
-app.post("/posts", PostController.create); // Create one post - Create/CRUD
-// app.get("/posts", PostController.getAll); // Get all posts - Read/CRUD
-// app.get("/posts/:id", PostController.getOne); // Get one post by id - Read/CRUD
+app.post(
+  "/posts",
+  checkAuth,
+  Validations.postCreateValidation,
+  PostController.create
+); // Create one post - Create/CRUD
+app.get("/posts", PostController.getAll); // Get all posts - Read/CRUD
+app.get("/posts/:id", PostController.getOne); // Get one post by id - Read/CRUD
 // app.patch("/posts/:id", PostController.update); // Update one post by id - Update/CRUD
 // app.delete("/posts/:id", PostController.remove); // Delete one post by id - Delete/CRUD
 
