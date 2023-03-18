@@ -1,5 +1,41 @@
 import PostModel from "../models/Post.js";
 
+export const remove = async (request, response) => {
+  try {
+    const postId = request.params.id;
+    const filter = { _id: postId }; // find post by id
+    PostModel.findOneAndDelete(filter)
+      .then((document) => {
+        if (!document) {
+          return response.status(404).json({
+            message: "Не удалось найти статью",
+          });
+        }
+
+        return response.json({
+          success: true
+        });
+      })
+      .catch((error) => {
+        console.log("----- ----- -----");
+        console.log("PostController - remove", error);
+        console.log("----- ----- -----");
+        if (error) {
+          return response.status(500).json({
+            message: "Не удалось удалить статью",
+          });
+        }
+      });
+  } catch (error) {
+    console.log("----- ----- -----");
+    console.log("PostController - remove", error);
+    console.log("----- ----- -----");
+    response.status(500).json({
+      message: "Не удалось удалить статью!",
+    });
+  }
+};
+
 export const getOne = async (request, response) => {
   try {
     const postId = request.params.id;
@@ -12,7 +48,7 @@ export const getOne = async (request, response) => {
         // this func describe what to do if we get an error and what to do after doc update
         if (!document) {
           return response.status(404).json({
-            message: "Не удалось найти пост",
+            message: "Не удалось найти статью",
           });
         }
 
@@ -24,7 +60,7 @@ export const getOne = async (request, response) => {
         console.log("----- ----- -----");
         if (error) {
           return response.status(500).json({
-            message: "Не удалось вернуть пост",
+            message: "Не удалось вернуть статью",
           });
         }
       });
@@ -33,7 +69,7 @@ export const getOne = async (request, response) => {
     console.log("PostController - getOne", error);
     console.log("----- ----- -----");
     response.status(500).json({
-      message: "Не удалось получить пост!",
+      message: "Не удалось получить статью!",
     });
   }
 };
@@ -76,7 +112,30 @@ export const create = async (request, response) => {
     console.log("PostController - create", error);
     console.log("----- ----- -----");
     response.status(500).json({
-      message: "Не удалось создать пост!",
+      message: "Не удалось создать статью!",
     });
   }
 };
+
+export const update = async (request, response) => {
+  try {
+    const postId = {_id: request.params.id};
+    const postContent = {
+      title: request.body.title,
+      text: request.body.text,
+      tags: request.body.tags,
+      imageUrl: request.body.imageUrl,
+      user: request.userId,
+    }
+    await PostModel.updateOne(postId, postContent)
+
+    response.json({success: true})
+  } catch (error) {
+    console.log("----- ----- -----");
+    console.log("PostController - update", error);
+    console.log("----- ----- -----");
+    response.status(500).json({
+      message: "Не удалось обновить статью!",
+    });
+  }
+}
