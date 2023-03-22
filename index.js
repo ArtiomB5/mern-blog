@@ -1,6 +1,7 @@
 import express from "express";
 import mongoose from "mongoose";
 import multer from "multer";
+import cors from "cors";
 
 import * as Validations from "./validations.js";
 import { checkAuth, handleValidationErrors } from "./utils/index.js";
@@ -27,13 +28,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 app.use(express.json());
+app.use(cors())
 app.use("/uploads", express.static("uploads"));
 // if express js get request to uploads url express will return image from uploads
 
 app.get("/", (request, response) => {
   response.send("Hello World 2!");
 });
-
 app.get("/auth/me", checkAuth, UserController.getMe);
 app.post(
   "/auth/login",
@@ -56,6 +57,7 @@ app.post(
 ); // Create one post - Create/CRUD
 app.get("/posts/:id", PostController.getOne); // Get one post by id - Read/CRUD
 app.get("/posts", PostController.getAll); // Get all posts - Read/CRUD
+app.get("/tags", PostController.getLastTags)
 app.patch(
   "/posts/:id",
   checkAuth,

@@ -95,6 +95,23 @@ export const getAll = async (request, response) => {
   }
 };
 
+export const getLastTags = async (request, response) => {
+  try {
+    const posts = await PostModel.find().limit(5).exec();
+    
+    const tags = posts.map(obj => obj.tags).flat().slice(0, 5);
+
+    return response.json(tags);
+  } catch (error) {
+    console.log("----- ----- -----");
+    console.log("PostController - getAllTags", error);
+    console.log("----- ----- -----");
+    response.status(500).json({
+      message: "Не удалось получить теги!",
+    });
+  }
+};
+
 export const create = async (request, response) => {
   try {
     const doc = new PostModel({
